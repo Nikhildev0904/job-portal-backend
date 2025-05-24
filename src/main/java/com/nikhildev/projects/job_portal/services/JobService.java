@@ -59,14 +59,23 @@ public class JobService {
                 }
             }
 
-            if (minSalary != null) {
+            if (minSalary != null && maxSalary != null) {
+                predicates.add(criteriaBuilder.and(
+                        criteriaBuilder.lessThanOrEqualTo(root.get("minSalary"), maxSalary),
+                        criteriaBuilder.greaterThanOrEqualTo(
+                                criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
+                                minSalary
+                        )
+                ));
+            } else if (minSalary != null) {
+                // If only min is set, show jobs where maxSalary >= userMin
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(
-                        root.get("minSalary"), minSalary));
-            }
-
-            if (maxSalary != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(
-                        root.get("maxSalary"), maxSalary));
+                        criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
+                        minSalary
+                ));
+            } else if (maxSalary != null) {
+                // If only max is set, show jobs where minSalary <= userMax
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("minSalary"), maxSalary));
             }
 
             // Cursor-based pagination
