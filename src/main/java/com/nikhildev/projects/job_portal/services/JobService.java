@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class JobService {
 
+    private static final BigInteger FRONTEND_MAX_SALARY = new BigInteger("2000000");
+
     private final JobRepository jobRepository;
 
     public Map<String, Object> getAllJobs(String title, String location, String jobType,
@@ -61,21 +63,31 @@ public class JobService {
             }
 
             if (minSalary != null && maxSalary != null) {
-                predicates.add(criteriaBuilder.and(
-                        criteriaBuilder.lessThanOrEqualTo(root.get("minSalary"), maxSalary),
-                        criteriaBuilder.greaterThanOrEqualTo(
-                                criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
-                                minSalary
-                        )
-                ));
+                // If maxSalary equals the frontend maximum, treat it as "no upper limit"
+                if (maxSalary.equals(FRONTEND_MAX_SALARY)) {
+                    // Only apply minimum salary filter (no upper limit)
+                    predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                            criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
+                            minSalary
+                    ));
+                } else {
+                    // Apply both min and max salary filters
+                    predicates.add(criteriaBuilder.and(
+                            criteriaBuilder.lessThanOrEqualTo(root.get("minSalary"), maxSalary),
+                            criteriaBuilder.greaterThanOrEqualTo(
+                                    criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
+                                    minSalary
+                            )
+                    ));
+                }
             } else if (minSalary != null) {
                 // If only min is set, show jobs where maxSalary >= userMin
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(
                         criteriaBuilder.coalesce(root.get("maxSalary"), root.get("minSalary")),
                         minSalary
                 ));
-            } else if (maxSalary != null) {
-                // If only max is set, show jobs where minSalary <= userMax
+            } else if (maxSalary != null && !maxSalary.equals(FRONTEND_MAX_SALARY)) {
+                // If only max is set (and it's not the frontend maximum), show jobs where minSalary <= userMax
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("minSalary"), maxSalary));
             }
 
